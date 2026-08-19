@@ -7,7 +7,6 @@ from aiogram.types import CallbackQuery, Message
 
 from bot.config import QUESTIONS_CHAT_ID, SUGGESTIONS_CHAT_ID
 from bot.database.dao import create_question, create_suggestion, upsert_user
-from bot.keyboards.inline import CALLBACK_FEEDBACK_QUESTION, CALLBACK_FEEDBACK_SUGGESTION
 from bot.keyboards.reply import get_main_menu_keyboard
 from bot.utils.content import get_content
 
@@ -21,7 +20,6 @@ class FeedbackStates(StatesGroup):
     waiting_suggestion = State()
 
 
-@router.callback_query(F.data == CALLBACK_FEEDBACK_QUESTION)
 async def start_question(callback: CallbackQuery, state: FSMContext, lang: str) -> None:
     content = get_content(lang)
     await state.set_state(FeedbackStates.waiting_question)
@@ -30,7 +28,6 @@ async def start_question(callback: CallbackQuery, state: FSMContext, lang: str) 
     await callback.answer()
 
 
-@router.callback_query(F.data == CALLBACK_FEEDBACK_SUGGESTION)
 async def start_suggestion(callback: CallbackQuery, state: FSMContext, lang: str) -> None:
     content = get_content(lang)
     await state.set_state(FeedbackStates.waiting_suggestion)
@@ -69,7 +66,7 @@ async def receive_question(message: Message, state: FSMContext, bot: Bot) -> Non
     await state.clear()
     await message.answer(
         content["question_received"],
-        reply_markup=get_main_menu_keyboard(content["categories"], content.get("feedback", {}).get("title", "")),
+        reply_markup=get_main_menu_keyboard(content["categories"]),
     )
 
 
@@ -103,5 +100,5 @@ async def receive_suggestion(message: Message, state: FSMContext, bot: Bot) -> N
     await state.clear()
     await message.answer(
         content["suggestion_received"],
-        reply_markup=get_main_menu_keyboard(content["categories"], content.get("feedback", {}).get("title", "")),
+        reply_markup=get_main_menu_keyboard(content["categories"]),
     )

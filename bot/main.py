@@ -1,5 +1,34 @@
 import asyncio
+import atexit
 import logging
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+LOCK_FILE = Path(__file__).resolve().parent.parent / ".bot.lock"
+
+
+def _acquire_single_instance() -> None:
+    """Защита от двойного запуска: если бот уже работает, второй процесс выходит."""
+    if LOCK_FILE.exists():
+        try:
+            old_pid = int(LOCK_FILE.read_text(encoding="utf-8").strip())
+        except (ValueError, OSError):
+            old_pid = None
+        if old_pid:
+            try:
+                os.kill(old_pid, 0)
+                print(f"Бот уже запущен (PID {old_pid}). Завершаюсь.")
+                sys.exit(1)
+            except Exception:
+                pass
+    LOCK_FILE.write_text(str(os.getpid()), encoding="utf-8")
+    atexit.register(lambda: LOCK_FILE.unlink(missing_ok=True))
+
+
+_acquire_single_instance()
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -9,6 +38,7 @@ from bot.config import BOT_TOKEN
 from bot.database.engine import init_db
 from bot.handlers import admin, feedback, menu, start
 from bot.middlewares.language import LanguageMiddleware
+from bot.utils.memes import ensure_meme_ids
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,6 +67,8 @@ async def main() -> None:
 
     await init_db()
     logger.info("Database initialized")
+
+    asyncio.create_task(ensure_meme_ids(bot))
 
     logger.info("Starting bot polling...")
     await dp.start_polling(bot)

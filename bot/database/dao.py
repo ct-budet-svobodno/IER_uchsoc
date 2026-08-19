@@ -50,6 +50,12 @@ async def get_user_language(user_id: int) -> str | None:
         return None
 
 
+async def get_all_user_ids() -> list[int]:
+    async with session_factory() as session:
+        rows = await session.execute(select(User.user_id))
+        return [row[0] for row in rows]
+
+
 async def create_question(user_id: int, text: str, username: str | None = None) -> Question:
     async with session_factory() as session:
         item = Question(

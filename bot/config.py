@@ -9,6 +9,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 QUESTIONS_CHAT_ID = os.getenv("QUESTIONS_CHAT_ID")
 SUGGESTIONS_CHAT_ID = os.getenv("SUGGESTIONS_CHAT_ID")
 
+MEME_STORAGE_CHAT_ID = os.getenv("MEME_STORAGE_CHAT_ID")
+
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///bot_data.db")
 
 

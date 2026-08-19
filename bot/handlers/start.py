@@ -23,7 +23,7 @@ async def cmd_start(message: Message) -> None:
         content = get_content(existing_lang)
         await message.answer(
             content["welcome"],
-            reply_markup=get_main_menu_keyboard(content["categories"], content.get("feedback", {}).get("title", "")),
+            reply_markup=get_main_menu_keyboard(content["categories"]),
         )
     else:
         await message.answer(
@@ -58,11 +58,10 @@ async def choose_language(callback: CallbackQuery) -> None:
         )
 
     content = get_content(lang)
-    feedback_title = content.get("feedback", {}).get("title", "")
 
     await callback.message.edit_text(content["welcome"])
     await callback.message.answer(
         content["main_menu_hint"],
-        reply_markup=get_main_menu_keyboard(content["categories"], feedback_title),
+        reply_markup=get_main_menu_keyboard(content["categories"]),
     )
     await callback.answer()

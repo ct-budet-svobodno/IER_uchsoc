@@ -1,7 +1,7 @@
 from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 
-def get_main_menu_keyboard(categories: list[dict], feedback_title: str = "") -> ReplyKeyboardMarkup:
+def get_main_menu_keyboard(categories: list[dict]) -> ReplyKeyboardMarkup:
     buttons = []
     row = []
     for i, cat in enumerate(categories, start=1):
@@ -11,8 +11,5 @@ def get_main_menu_keyboard(categories: list[dict], feedback_title: str = "") -> 
             row = []
     if row:
         buttons.append(row)
-
-    if feedback_title:
-        buttons.append([KeyboardButton(text=feedback_title)])
 
     return ReplyKeyboardMarkup(keyboard=buttons, resize_keyboard=True)

@@ -1,13 +1,21 @@
+import asyncio
 import logging
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramRetryAfter
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 
 from bot.config import ADMIN_IDS
-from bot.database.dao import answer_question, get_question_by_id
+from bot.database.dao import (
+    answer_question,
+    get_all_user_ids,
+    get_question_by_id,
+    get_user_language,
+)
+from bot.utils.content import get_content
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +25,10 @@ router = Router()
 class AnswerStates(StatesGroup):
     waiting_question_id = State()
     waiting_answer_text = State()
+
+
+class PushStates(StatesGroup):
+    waiting_push_text = State()
 
 
 def _is_admin(user_id: int | None) -> bool:
@@ -119,13 +131,12 @@ async def receive_answer_text(message: Message, state: FSMContext) -> None:
     bot = message.bot
     delivery_ok = True
     try:
+        user_lang = await get_user_language(question.user_id) or "ru"
+        content = get_content(user_lang)
+        delivery_text = content["answer_delivery"].format(answer=answer_text)
         await bot.send_message(
             chat_id=question.user_id,
-            text=(
-                "\U0001F4AC \u041E\u0442\u0432\u0435\u0442 \u043D\u0430 \u0432\u0430\u0448 \u0432\u043E\u043F\u0440\u043E\u0441\n\n"
-                f"<b>\u0412\u043E\u043F\u0440\u043E\u0441:</b>\n{question.text}\n\n"
-                f"<b>\u041E\u0442\u0432\u0435\u0442:</b>\n{answer_text}"
-            ),
+            text=delivery_text,
         )
         logger.info("Answer sent successfully to user %s", question.user_id)
     except Exception as e:
@@ -138,6 +149,59 @@ async def receive_answer_text(message: Message, state: FSMContext) -> None:
         await message.answer(f"\u041E\u0442\u0432\u0435\u0442 \u043D\u0430 \u0432\u043E\u043F\u0440\u043E\u0441 #{question_id} \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044E \u2705")
     else:
         await message.answer(f"\u041E\u0442\u0432\u0435\u0442 \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D, \u043D\u043E \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0434\u043E\u0441\u0442\u0430\u0432\u0438\u0442\u044C \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u043E\u043B\u044E (\u0432\u043E\u0437\u043C\u043E\u0436\u043D\u043E, \u043E\u043D \u043D\u0435 \u0437\u0430\u043F\u0443\u0441\u043A\u0430\u043B \u0431\u043E\u0442\u0430).")
+
+
+@router.message(Command("push"))
+async def cmd_push(message: Message, state: FSMContext) -> None:
+    user_id = message.from_user.id if message.from_user else None
+    if not _is_admin(user_id):
+        await message.answer("\u0423 \u0432\u0430\u0441 \u043D\u0435\u0442 \u043F\u0440\u0430\u0432 \u043D\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435 \u044D\u0442\u043E\u0439 \u043A\u043E\u043C\u0430\u043D\u0434\u044B.")
+        return
+
+    await state.set_state(PushStates.waiting_push_text)
+    await message.answer(
+        "\u041D\u0430\u043F\u0438\u0448\u0438 \u0442\u0435\u043A\u0441\u0442 \u0440\u0430\u0441\u0441\u044B\u043B\u043A\u0438:"
+    )
+
+
+@router.message(PushStates.waiting_push_text, F.text)
+async def receive_push_text(message: Message, state: FSMContext, bot: Bot) -> None:
+    user_id = message.from_user.id if message.from_user else None
+    if not _is_admin(user_id):
+        await state.clear()
+        return
+
+    push_text = (message.text or "").strip()
+    if not push_text:
+        await message.answer("\u0422\u0435\u043A\u0441\u0442 \u0440\u0430\u0441\u0441\u044B\u043B\u043A\u0438 \u043D\u0435 \u043C\u043E\u0436\u0435\u0442 \u0431\u044B\u0442\u044C \u043F\u0443\u0441\u0442\u044B\u043C.")
+        return
+
+    await state.clear()
+    await message.answer("\u041D\u0430\u0447\u0438\u043D\u0430\u044E \u0440\u0430\u0441\u0441\u044B\u043B\u043A\u0443...")
+
+    user_ids = await get_all_user_ids()
+    if not user_ids:
+        await message.answer("\u0412 \u0431\u0430\u0437\u0435 \u043D\u0435\u0442 \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u0435\u0439.")
+        return
+
+    sent = 0
+    failed = 0
+    for uid in user_ids:
+        while True:
+            try:
+                await bot.send_message(chat_id=uid, text=push_text, parse_mode=None)
+                sent += 1
+                break
+            except TelegramRetryAfter as e:
+                await asyncio.sleep(e.retry_after)
+            except Exception:
+                failed += 1
+                break
+        await asyncio.sleep(0.05)
+
+    await message.answer(
+        f"\u0420\u0430\u0441\u0441\u044B\u043B\u043A\u0430 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0430: \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E {sent}, \u043E\u0448\u0438\u0431\u043E\u043A {failed}."
+    )
 
 
 @router.message(AnswerStates.waiting_question_id)

@@ -32,3 +32,29 @@ def get_subcategory_by_id(content: dict, category_id: str, subcategory_id: str) 
         if sub["id"] == subcategory_id:
             return sub
     return None
+
+
+def find_item(content: dict, item_id: str) -> dict | None:
+    """Recursively find a category or subcategory of any level by its id."""
+    for cat in content.get("categories", []):
+        found = _search_in_tree(cat, item_id)
+        if found:
+            return found
+    return None
+
+
+def _search_in_tree(node: dict, item_id: str) -> dict | None:
+    if node.get("id") == item_id:
+        return node
+    for child in node.get("subcategories", []):
+        found = _search_in_tree(child, item_id)
+        if found:
+            return found
+    return None
+
+
+def get_parent_id(item_id: str) -> str:
+    """Parent id of a nested item: '1.1.1' -> '1.1', '1.1' -> '1', '1' -> ''."""
+    if "." in item_id:
+        return item_id.rsplit(".", 1)[0]
+    return ""
