@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import shutil
 
 from aiogram import Bot, F, Router
 from aiogram.exceptions import TelegramRetryAfter
@@ -15,7 +16,8 @@ from bot.database.dao import (
     get_question_by_id,
     get_user_language,
 )
-from bot.utils.content import get_content
+from bot.utils.content import DATA_DIR, get_content
+from bot.utils.memes import MEME_IDS_FILE, MEMES_DIR, ensure_meme_ids, reset_meme_cache
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,10 @@ class AnswerStates(StatesGroup):
 
 class PushStates(StatesGroup):
     waiting_push_text = State()
+
+
+class SecretStates(StatesGroup):
+    collecting = State()
 
 
 def _is_admin(user_id: int | None) -> bool:
@@ -222,3 +228,73 @@ async def catch_all_answer_state(message: Message, state: FSMContext) -> None:
         "UNHANDLED in waiting_answer_text: user=%s state=%s has_text=%s text=%s",
         user_id, current_state, bool(message.text), (message.text or "")[:50],
     )
+
+
+SECRET_TMP_DIR = DATA_DIR / "photos" / "memes_tmp"
+
+
+@router.message(Command("secret"))
+async def cmd_secret(message: Message, state: FSMContext) -> None:
+    user_id = message.from_user.id if message.from_user else None
+    if not _is_admin(user_id):
+        await message.answer("\u0423 \u0432\u0430\u0441 \u043D\u0435\u0442 \u043F\u0440\u0430\u0432 \u043D\u0430 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u0438\u0435 \u044D\u0442\u043E\u0439 \u043A\u043E\u043C\u0430\u043D\u0434\u044B.")
+        return
+
+    SECRET_TMP_DIR.mkdir(parents=True, exist_ok=True)
+    for f in SECRET_TMP_DIR.glob("*"):
+        f.unlink()
+
+    await state.set_state(SecretStates.collecting)
+    count = len(list(MEMES_DIR.glob("*.jpg")))
+    await message.answer(
+        f"\u0421\u0435\u0439\u0447\u0430\u0441 \u043D\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0435 {count} \u043C\u0435\u043C\u043E\u0432.\n\n"
+        "\u041E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u0439\u0442\u0435 \u0444\u043E\u0442\u043E. \u041A\u043E\u0433\u0434\u0430 \u0437\u0430\u043A\u043E\u043D\u0447\u0438\u0442\u0435 \u2014 \u043D\u0430\u043F\u0438\u0448\u0438\u0442\u0435 \u00ab\u0421\u0442\u043E\u043F\u00bb."
+    )
+
+
+@router.message(SecretStates.collecting, F.photo)
+async def collect_photo(message: Message, bot: Bot) -> None:
+    photo = message.photo[-1]
+    file = await bot.get_file(photo.file_id)
+    count = len(list(SECRET_TMP_DIR.glob("*.jpg"))) + 1
+    dest = SECRET_TMP_DIR / f"photo_{count:04d}.jpg"
+    await bot.download_file(file.file_path, dest)
+    await message.answer(f"\u0421\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E ({count})")
+
+
+@router.message(SecretStates.collecting, F.text)
+async def finish_collecting(message: Message, state: FSMContext) -> None:
+    text = (message.text or "").strip()
+    if text != "\u0421\u0442\u043E\u043F":
+        await message.answer(
+            "\u041E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u0439\u0442\u0435 \u0444\u043E\u0442\u043E \u0438\u043B\u0438 \u043D\u0430\u043F\u0438\u0448\u0438\u0442\u0435 \u00ab\u0421\u0442\u043E\u043F\u00bb."
+        )
+        return
+
+    new_photos = sorted(SECRET_TMP_DIR.glob("*.jpg"))
+    if not new_photos:
+        await state.clear()
+        await message.answer(
+            "\u0424\u043E\u0442\u043E \u043D\u0435 \u0431\u044B\u043B\u043E \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u043E. \u0420\u0435\u0436\u0438\u043C \u043E\u0442\u043C\u0435\u043D\u0451\u043D."
+        )
+        return
+
+    for f in MEMES_DIR.glob("*"):
+        f.unlink()
+
+    for i, src in enumerate(new_photos, 1):
+        shutil.move(str(src), MEMES_DIR / f"meme_{i:02d}.jpg")
+
+    for f in SECRET_TMP_DIR.glob("*"):
+        f.unlink()
+    SECRET_TMP_DIR.rmdir()
+
+    if MEME_IDS_FILE.exists():
+        MEME_IDS_FILE.unlink()
+    reset_meme_cache()
+
+    await state.clear()
+    await message.answer(
+        f"\u0413\u043E\u0442\u043E\u0432\u043E! \u0421\u0442\u0430\u0440\u044B\u0435 \u043C\u0435\u043C\u044B \u0443\u0434\u0430\u043B\u0435\u043D\u044B, \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D\u043E {len(new_photos)} \u043D\u043E\u0432\u044B\u0445."
+    )
+    asyncio.create_task(ensure_meme_ids(bot))

@@ -16,6 +16,12 @@ MEME_IDS_FILE = DATA_DIR / "meme_ids.json"
 _meme_ids: list[str] = []
 
 
+def reset_meme_cache() -> None:
+    """Сбрасывает кэш file_id, чтобы следующие мемы подтянулись с сервера заново."""
+    global _meme_ids
+    _meme_ids = []
+
+
 def _load_meme_ids() -> list[str]:
     global _meme_ids
     if _meme_ids:

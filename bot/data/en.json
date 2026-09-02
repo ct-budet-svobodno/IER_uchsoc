@@ -441,6 +441,10 @@
       ]
     },
     {
+      "id": "9",
+      "title": "Secret button"
+    },
+    {
       "id": "8",
       "title": "Questions and suggestions",
       "subcategories": [
@@ -455,10 +459,6 @@
           "text": ""
         }
       ]
-    },
-    {
-      "id": "9",
-      "title": "Secret button"
     }
   ],
   "welcome": "Hi 💖\nThis is the IER Student Council bot. Here you can find answers to your questions.\n\n ❗️Choose the section you need and look for the information there.\n\n📎If you don’t find the answer to your question in the buttons — you can write directly to the IER Student Council using the QUESTION button.\n\n📎If you have a suggestion on how to improve the university environment — you can write it using the SUGGESTION button.",
