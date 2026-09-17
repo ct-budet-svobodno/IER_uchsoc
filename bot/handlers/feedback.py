@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 
-from bot.config import QUESTIONS_CHAT_ID, SUGGESTIONS_CHAT_ID
+from bot import config
 from bot.database.dao import create_question, create_suggestion, upsert_user
 from bot.keyboards.reply import get_main_menu_keyboard
 from bot.utils.content import get_content
@@ -57,11 +57,11 @@ async def receive_question(message: Message, state: FSMContext, bot: Bot) -> Non
     user_label = f"@{user.username}" if user.username else f"ID: {user.id}"
     forward_text = content["forwarded_question"].format(question_id=question.id, username=user_label, text=text)
 
-    if QUESTIONS_CHAT_ID:
+    if config.QUESTIONS_CHAT_ID:
         try:
-            await bot.send_message(chat_id=int(QUESTIONS_CHAT_ID), text=forward_text)
+            await bot.send_message(chat_id=int(config.QUESTIONS_CHAT_ID), text=forward_text)
         except Exception as e:
-            logger.error("Failed to forward question to chat %s: %s", QUESTIONS_CHAT_ID, e)
+            logger.error("Failed to forward question to chat %s: %s", config.QUESTIONS_CHAT_ID, e)
 
     await state.clear()
     await message.answer(
@@ -91,11 +91,11 @@ async def receive_suggestion(message: Message, state: FSMContext, bot: Bot) -> N
     user_label = f"@{user.username}" if user.username else f"ID: {user.id}"
     forward_text = content["forwarded_suggestion"].format(username=user_label, text=text)
 
-    if SUGGESTIONS_CHAT_ID:
+    if config.SUGGESTIONS_CHAT_ID:
         try:
-            await bot.send_message(chat_id=int(SUGGESTIONS_CHAT_ID), text=forward_text)
+            await bot.send_message(chat_id=int(config.SUGGESTIONS_CHAT_ID), text=forward_text)
         except Exception as e:
-            logger.error("Failed to forward suggestion to chat %s: %s", SUGGESTIONS_CHAT_ID, e)
+            logger.error("Failed to forward suggestion to chat %s: %s", config.SUGGESTIONS_CHAT_ID, e)
 
     await state.clear()
     await message.answer(

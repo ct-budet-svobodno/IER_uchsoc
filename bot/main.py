@@ -36,7 +36,7 @@ from aiogram.enums import ParseMode
 
 from bot.config import BOT_TOKEN
 from bot.database.engine import init_db
-from bot.handlers import admin, feedback, menu, start
+from bot.handlers import admin, feedback, menu, start, super_admin
 from bot.middlewares.language import LanguageMiddleware
 from bot.utils.memes import ensure_meme_ids
 
@@ -60,6 +60,7 @@ async def main() -> None:
     dp.message.middleware(LanguageMiddleware())
     dp.callback_query.middleware(LanguageMiddleware())
 
+    dp.include_router(super_admin.router)
     dp.include_router(start.router)
     dp.include_router(admin.router)
     dp.include_router(feedback.router)

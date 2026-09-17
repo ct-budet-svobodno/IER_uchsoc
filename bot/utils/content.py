@@ -17,23 +17,6 @@ def get_content(lang: str) -> dict:
     return _load_json(lang)
 
 
-def get_category_by_id(content: dict, category_id: str) -> dict | None:
-    for cat in content.get("categories", []):
-        if cat["id"] == category_id:
-            return cat
-    return None
-
-
-def get_subcategory_by_id(content: dict, category_id: str, subcategory_id: str) -> dict | None:
-    cat = get_category_by_id(content, category_id)
-    if not cat:
-        return None
-    for sub in cat.get("subcategories", []):
-        if sub["id"] == subcategory_id:
-            return sub
-    return None
-
-
 def find_item(content: dict, item_id: str) -> dict | None:
     """Recursively find a category or subcategory of any level by its id."""
     for cat in content.get("categories", []):

@@ -1,5 +1,3 @@
-import logging
-
 from aiogram import F, Router
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
@@ -15,8 +13,6 @@ from bot.keyboards.inline import (
 from bot.keyboards.reply import get_main_menu_keyboard
 from bot.utils.content import DATA_DIR, find_item, get_content, get_parent_id
 from bot.utils.memes import get_random_meme
-
-logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -47,7 +43,7 @@ async def _show_secret_meme(message: Message, content: dict) -> bool:
     return True
 
 
-@router.message(StateFilter(None), F.text)
+@router.message(StateFilter(None), F.text, ~F.text.startswith("/"))
 async def handle_main_menu(message: Message, lang: str) -> None:
     content = get_content(lang)
     text = message.text or ""

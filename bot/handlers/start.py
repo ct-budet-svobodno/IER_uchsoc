@@ -1,5 +1,3 @@
-import logging
-
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import CallbackQuery, Message
@@ -8,8 +6,6 @@ from bot.database.dao import get_user_language, upsert_user
 from bot.keyboards.inline import CALLBACK_LANG, get_language_keyboard
 from bot.keyboards.reply import get_main_menu_keyboard
 from bot.utils.content import get_content
-
-logger = logging.getLogger(__name__)
 
 router = Router()
 
